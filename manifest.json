@@ -1,0 +1,21 @@
+{
+  "name": "IB Career OS",
+  "short_name": "IB OS",
+  "description": "Investment Banking Career Tracker and OS",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192/2563eb/ffffff?text=IB",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512/2563eb/ffffff?text=IB",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
