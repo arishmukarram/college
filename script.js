@@ -18,11 +18,7 @@ function toggleTheme() {
   const body = document.documentElement;
   const newTheme = body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
   body.setAttribute('data-theme', newTheme);
-  fetch(`${API_URL}/user`, { 
-    method: 'PUT', 
-    headers: { 'Content-Type': 'application/json' }, 
-    body: JSON.stringify({ theme: newTheme }) 
-  });
+  saveData('theme', newTheme);
 }
 
 /* ============================
@@ -31,8 +27,9 @@ function toggleTheme() {
 function updateProgress() {
   const trackerChecks = document.querySelectorAll('.track-check');
   const total = trackerChecks.length;
-  let completed = Array.from(trackerChecks).filter(c => c.checked).length;
+  const completed = Array.from(trackerChecks).filter(c => c.checked).length;
   const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+  
   const progressBar = document.getElementById('progress-bar');
   const progressText = document.getElementById('progress-text');
   
@@ -44,13 +41,16 @@ function updateProgress() {
    SYNC WITH MONGODB
 ============================ */
 async function saveData(key, value) {
-  const payload = {};
-  payload[key] = value;
-  await fetch(`${API_URL}/user`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
+  try {
+    const payload = { [key]: value };
+    await fetch(`${API_URL}/user`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    console.error("Save failed:", err);
+  }
 }
 
 /* ============================
@@ -59,7 +59,10 @@ async function saveData(key, value) {
 const TODO_KEY = 'careeros-todos';
 let todos = JSON.parse(localStorage.getItem(TODO_KEY) || '[]');
 
-function saveTodos() { localStorage.setItem(TODO_KEY, JSON.stringify(todos)); renderTodos(); }
+function saveTodos() { 
+  localStorage.setItem(TODO_KEY, JSON.stringify(todos)); 
+  renderTodos(); 
+}
 
 function addTodo(text, priority, due) {
   todos.unshift({ id: Date.now().toString(), text, priority, due, done: false });
@@ -81,7 +84,7 @@ function renderTodos() {
   const emptyEl = document.getElementById('todo-empty-state');
   
   if (todos.length === 0) {
-      listEl.innerHTML = '';
+      if (listEl) listEl.innerHTML = '';
       if (emptyEl) emptyEl.style.display = 'block';
   } else {
       if (emptyEl) emptyEl.style.display = 'none';
@@ -109,31 +112,32 @@ function renderTodos() {
    INITIALIZATION
 ============================ */
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Fetch saved data (MongoDB)
+  // 1. Sync MongoDB Data
   try {
     const response = await fetch(`${API_URL}/user`);
     if (response.ok) {
       const data = await response.json();
       
-      // Sync Theme
       if (data.theme) document.documentElement.setAttribute('data-theme', data.theme);
 
-      // Loop through inputs
       const inputs = document.querySelectorAll('.save-input, .save-check, .track-check');
       inputs.forEach(el => {
         if (data[el.id] !== undefined) {
           if (el.type === 'checkbox') el.checked = data[el.id];
           else el.value = data[el.id];
         }
+        
+        // Add listeners for real-time saving
         el.addEventListener('change', (e) => {
-          saveData(e.target.id, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
-          if(e.target.classList.contains('track-check')) updateProgress();
+          const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+          if (e.target.classList.contains('track-check')) updateProgress();
+          saveData(e.target.id, val);
         });
       });
     }
   } catch (err) { console.error("Sync Error:", err); }
 
-  // 2. Init To-Do List
+  // 2. Setup To-Do List
   renderTodos();
   document.getElementById('todo-add-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -149,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateProgress();
   const savedTab = localStorage.getItem('careeros-active-tab');
   if (savedTab) {
-    const btn = Array.from(document.querySelectorAll('.tab')).find(b => b.getAttribute('onclick').includes(savedTab));
+    const btn = Array.from(document.querySelectorAll('.tab')).find(b => b.getAttribute('onclick')?.includes(savedTab));
     if (btn) showTab(savedTab, btn);
   }
 });
